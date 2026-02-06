@@ -1,0 +1,22 @@
+# MDS Time Terminal - Python Dependencies
+
+# Webserver + WebSocket
+fastapi==0.115.0
+uvicorn[standard]==0.30.0
+websockets==13.0
+
+# Konfiguration
+pyyaml==6.0.2
+
+# HTTP Client (Server-Sync)
+httpx==0.27.0
+
+# NFC Reader (PN532)
+adafruit-circuitpython-pn532==1.3.14
+
+# GPIO / Buzzer
+gpiozero==2.0.1
+RPi.GPIO==0.7.1
+
+# Async Support
+anyio==4.4.0

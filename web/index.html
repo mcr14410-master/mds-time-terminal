@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1280, height=720, user-scalable=no">
+    <title>MDS Zeiterfassung</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- ============================================ -->
+    <!-- IDLE SCREEN: Uhr + Scan-Aufforderung        -->
+    <!-- ============================================ -->
+    <div id="screen-idle" class="screen active">
+        <div class="status-bar">
+            <span id="idle-date" class="status-date"></span>
+            <div class="status-indicators">
+                <span id="indicator-nfc" class="indicator" title="NFC">📡</span>
+                <span id="indicator-server" class="indicator" title="Server">🔗</span>
+                <span id="indicator-sync" class="indicator hidden" title="Ausstehend">⏳</span>
+            </div>
+        </div>
+        <div class="idle-content">
+            <div id="idle-clock" class="clock">--:--</div>
+            <div class="scan-prompt">Bitte Karte auflegen</div>
+            <div class="scan-icon">💳</div>
+            <button id="btn-pin-login" class="btn btn-outline" onclick="showScreen('pin')">
+                PIN Eingabe
+            </button>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- PIN SCREEN: PIN-Eingabe                      -->
+    <!-- ============================================ -->
+    <div id="screen-pin" class="screen">
+        <div class="pin-header">
+            <button class="btn btn-back" onclick="showScreen('idle')">← Zurück</button>
+            <h2>PIN Eingabe</h2>
+        </div>
+        <div class="pin-content">
+            <div id="pin-display" class="pin-display">____</div>
+            <div id="pin-error" class="pin-error hidden"></div>
+            <div class="numpad">
+                <button class="btn btn-num" onclick="pinInput('1')">1</button>
+                <button class="btn btn-num" onclick="pinInput('2')">2</button>
+                <button class="btn btn-num" onclick="pinInput('3')">3</button>
+                <button class="btn btn-num" onclick="pinInput('4')">4</button>
+                <button class="btn btn-num" onclick="pinInput('5')">5</button>
+                <button class="btn btn-num" onclick="pinInput('6')">6</button>
+                <button class="btn btn-num" onclick="pinInput('7')">7</button>
+                <button class="btn btn-num" onclick="pinInput('8')">8</button>
+                <button class="btn btn-num" onclick="pinInput('9')">9</button>
+                <button class="btn btn-num btn-clear" onclick="pinClear()">⌫</button>
+                <button class="btn btn-num" onclick="pinInput('0')">0</button>
+                <button class="btn btn-num btn-ok" onclick="pinSubmit()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- ACTION SCREEN: User erkannt, Aktions-Buttons -->
+    <!-- ============================================ -->
+    <div id="screen-action" class="screen">
+        <div class="action-header">
+            <div id="action-time" class="action-time">--:--</div>
+            <div id="action-user" class="action-user">Name</div>
+            <div id="action-status-text" class="action-status-text"></div>
+        </div>
+        <div class="action-buttons">
+            <button id="btn-clock-in" class="btn btn-action btn-green" onclick="stamp('clock_in')">
+                <span class="btn-icon">▶</span>
+                <span class="btn-label">KOMMEN</span>
+            </button>
+            <button id="btn-clock-out" class="btn btn-action btn-red" onclick="stamp('clock_out')">
+                <span class="btn-icon">⏹</span>
+                <span class="btn-label">GEHEN</span>
+            </button>
+            <button id="btn-break-start" class="btn btn-action btn-yellow" onclick="stamp('break_start')">
+                <span class="btn-icon">⏸</span>
+                <span class="btn-label">PAUSE</span>
+            </button>
+            <button id="btn-break-end" class="btn btn-action btn-blue" onclick="stamp('break_end')">
+                <span class="btn-icon">▶</span>
+                <span class="btn-label">WEITER</span>
+            </button>
+        </div>
+        <div class="action-footer">
+            <button class="btn btn-outline" onclick="showInfo()">ℹ Info</button>
+            <button class="btn btn-outline" onclick="resetToIdle()">✕ Abbrechen</button>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- SUCCESS SCREEN: Stempelung bestätigt          -->
+    <!-- ============================================ -->
+    <div id="screen-success" class="screen">
+        <div class="success-content">
+            <div class="success-icon">✓</div>
+            <div id="success-message" class="success-message"></div>
+            <div id="success-time" class="success-time"></div>
+            <div id="success-detail" class="success-detail"></div>
+        </div>
+        <div id="success-countdown" class="countdown"></div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- INFO SCREEN: Zeitkonto-Übersicht              -->
+    <!-- ============================================ -->
+    <div id="screen-info" class="screen">
+        <div class="info-header">
+            <button class="btn btn-back" onclick="showScreen('action')">← Zurück</button>
+            <h2 id="info-user-name">Zeitkonto</h2>
+        </div>
+        <div class="info-content">
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="info-label">Heute</div>
+                    <div id="info-today" class="info-value">--:--</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Diese Woche</div>
+                    <div id="info-week" class="info-value">--:--</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Dieser Monat</div>
+                    <div id="info-month" class="info-value">--:--</div>
+                </div>
+                <div class="info-card highlight">
+                    <div class="info-label">Zeitkonto</div>
+                    <div id="info-balance" class="info-value">--:--</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Resturlaub</div>
+                    <div id="info-vacation" class="info-value">-- Tage</div>
+                </div>
+            </div>
+            <div id="info-entries" class="info-entries">
+                <h3>Letzte Buchungen</h3>
+                <div id="info-entries-list"></div>
+            </div>
+            <div id="info-offline-hint" class="info-offline hidden">
+                ⚠ Server nicht erreichbar – Daten evtl. nicht aktuell
+            </div>
+        </div>
+        <div id="info-countdown" class="countdown"></div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- ERROR SCREEN                                  -->
+    <!-- ============================================ -->
+    <div id="screen-error" class="screen">
+        <div class="error-content">
+            <div class="error-icon">✕</div>
+            <div id="error-message" class="error-message"></div>
+        </div>
+        <div id="error-countdown" class="countdown"></div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

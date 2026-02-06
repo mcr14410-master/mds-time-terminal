@@ -1,0 +1,48 @@
+# MDS Time Terminal - Konfiguration
+# Kopiere diese Datei nach config.yaml und passe die Werte an
+
+# MDS Server Verbindung
+server:
+  url: "http://192.168.1.100:3000"    # MDS Server IP/URL
+  api_path: "/api/time-tracking"
+  sync_interval: 30                    # Sekunden zwischen Sync-Versuchen
+  user_sync_interval: 300              # Sekunden zwischen User-Liste Updates (5 Min)
+  timeout: 5                           # HTTP Timeout in Sekunden
+
+# Terminal Identifikation
+terminal:
+  id: 1                                # Terminal-ID in MDS Datenbank
+  name: "Zeiterfassung Halle"          # Anzeigename
+  location: "Eingang Fertigung"
+
+# NFC Reader (PN532 über I2C)
+nfc:
+  enabled: true
+  type: "pn532"                        # pn532 oder rc522 (für später)
+  bus: "i2c"                           # i2c oder spi
+  i2c_bus: 1                           # I2C Bus Nummer (Standard: 1)
+  poll_interval: 0.3                   # Sekunden zwischen NFC-Leseversuchen
+  debounce: 2.0                        # Sekunden - gleiche Karte ignorieren
+
+# Buzzer (KY-006 Passiv-Piezo über PWM)
+buzzer:
+  enabled: true
+  gpio_pin: 18                         # BCM Pin-Nummer (PWM-fähig: 12, 13, 18, 19)
+  volume: 0.5                          # Lautstärke 0.0 - 1.0
+
+# Lokaler Webserver
+web:
+  host: "0.0.0.0"
+  port: 8080
+
+# Display
+display:
+  auto_reset_seconds: 10               # Nach Stempelung zurück zum Scan-Screen
+  info_timeout_seconds: 30             # Info-Screen Timeout
+  brightness: 100                      # Display-Helligkeit (0-100, für später)
+
+# Logging
+logging:
+  level: "INFO"                        # DEBUG, INFO, WARNING, ERROR
+  file: "terminal.log"
+  max_size_mb: 10

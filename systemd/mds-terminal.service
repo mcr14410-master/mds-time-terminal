@@ -1,0 +1,22 @@
+[Unit]
+Description=MDS Time Terminal
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/mds-time-terminal
+ExecStart=/home/pi/mds-time-terminal/.venv/bin/python -m service.main
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+# GPIO/I2C Zugriff
+SupplementaryGroups=gpio i2c spi
+
+# Watchdog
+WatchdogSec=60
+
+[Install]
+WantedBy=multi-user.target
