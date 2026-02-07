@@ -53,7 +53,7 @@ class SyncService:
         """Prüft ob MDS Server erreichbar ist."""
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                resp = await client.get(f"{self.base_url}/api/health")
+                resp = await client.get(f"{self.api_url}/info", headers=self._headers)
                 self._server_online = resp.status_code == 200
         except Exception:
             self._server_online = False
@@ -96,6 +96,11 @@ class SyncService:
                         server_id = data.get("id")
                         db.mark_stamp_synced(stamp["id"], server_id)
                         synced += 1
+                    elif resp.status_code == 409:
+                        # Duplikat - bereits auf Server vorhanden
+                        db.mark_stamp_synced(stamp["id"], None)
+                        synced += 1
+                        logger.info(f"Stamp {stamp['id']} bereits auf Server (409 Duplikat)")
                     else:
                         error_msg = resp.text[:200]
                         db.mark_stamp_failed(stamp["id"], f"HTTP {resp.status_code}: {error_msg}")
@@ -172,13 +177,16 @@ class SyncService:
             return None
 
         try:
-            resp = await self._client.get(
-                f"{self._base_url}/api/terminal/user-info/{user_id}",
-                headers=self._headers,
-            )
-            if resp.status_code == 200:
-                return resp.json()
-            return None
+
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                resp = await client.get(
+                    f"{self.api_url}/user-info/{user_id}",
+                    headers=self._headers,
+                )
+                if resp.status_code == 200:
+                    return resp.json()
+                return None
+
         except Exception as e:
             logger.warning(f"get_user_info fehlgeschlagen: {e}")
             return None

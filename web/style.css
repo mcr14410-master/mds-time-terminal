@@ -10,6 +10,7 @@
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
     user-select: none;
+    cursor: none !important;
 }
 
 html, body {
@@ -19,7 +20,7 @@ html, body {
     font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
     background: #0f172a;
     color: #e2e8f0;
-    cursor: default;
+    cursor: none !important;
 }
 
 /* ============================================
