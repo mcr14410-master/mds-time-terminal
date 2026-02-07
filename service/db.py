@@ -238,7 +238,7 @@ def mark_stamp_failed(stamp_id: int, error: str):
 
 def get_today_stamps(user_id: int) -> list:
     """Heutige Stempelungen eines Users (für Status-Ermittlung)."""
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     conn = get_connection()
     try:
         rows = conn.execute("""
@@ -253,7 +253,7 @@ def get_today_stamps(user_id: int) -> list:
 
 def get_last_stamp(user_id: int) -> dict | None:
     """Letzte Stempelung eines Users heute."""
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     conn = get_connection()
     try:
         row = conn.execute("""
@@ -362,11 +362,11 @@ def get_user_status(user_id: int) -> dict:
 
     # Laufende Arbeitszeit (noch eingestempelt)
     if clock_in_time and state == "present":
-        worked_minutes += (datetime.now() - clock_in_time).total_seconds() / 60
+        worked_minutes += (datetime.now(timezone.utc) - clock_in_time).total_seconds() / 60
 
     # Laufende Pause
     if break_start_time and state == "break":
-        break_minutes += (datetime.now() - break_start_time).total_seconds() / 60
+        break_minutes += (datetime.now(timezone.utc) - break_start_time).total_seconds() / 60
 
     valid_actions = VALID_TRANSITIONS.get(state, [])
     last_entry = stamps[-1] if stamps else None
