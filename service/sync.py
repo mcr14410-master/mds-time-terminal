@@ -27,6 +27,7 @@ class SyncService:
         self.user_sync_interval = cfg.get("user_sync_interval", 300)
 
         self.terminal_id = config.get("terminal", "id")
+        self.api_key = config.get("terminal", "api_key")
 
         self._running = False
         self._server_online = False
@@ -38,7 +39,11 @@ class SyncService:
 
     @property
     def api_url(self) -> str:
-        return f"{self.base_url}{self.api_path}"
+        return f"{self.base_url}/api/terminal"
+
+    @property
+    def _headers(self) -> dict:
+        return {"X-Terminal-Key": self.api_key or ""}
 
     # ============================================
     # Server Health Check
@@ -77,17 +82,13 @@ class SyncService:
             for stamp in unsynced:
                 try:
                     resp = await client.post(
-                        f"{self.api_url}/entries/stamp-terminal",
+                        f"{self.api_url}/stamp",
                         json={
-                            "rfid_chip_id": None,  # Wird über user_id gelöst
-                            "pin_code": None,
+                            "user_id": stamp["user_id"],
                             "entry_type": stamp["entry_type"],
-                            "terminal_id": self.terminal_id,
-                            # Zusatzfelder für Terminal-Sync
-                            "user_id_override": stamp["user_id"],
-                            "timestamp_override": stamp["timestamp"],
-                            "source": "terminal_sync",
+                            "timestamp": stamp["timestamp"],
                         },
+                        headers=self._headers,
                     )
 
                     if resp.status_code in (200, 201):
@@ -125,12 +126,9 @@ class SyncService:
         """
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                # Wir brauchen einen speziellen Terminal-Endpoint oder nutzen
-                # den bestehenden Users-Endpoint mit Filter
                 resp = await client.get(
-                    f"{self.base_url}/api/users",
-                    params={"time_tracking": "true"},
-                    headers={"X-Terminal-ID": str(self.terminal_id)},
+                    f"{self.api_url}/users",
+                    headers=self._headers,
                 )
 
                 if resp.status_code != 200:
@@ -185,7 +183,7 @@ class SyncService:
 
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 resp = await client.get(
-                    f"{self.api_url}/entries/user-info",
+                    f"{self.base_url}/api/time-tracking/entries/user-info",
                     params=params,
                 )
 

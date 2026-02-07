@@ -14,6 +14,7 @@ terminal:
   id: 1                                # Terminal-ID in MDS Datenbank
   name: "Zeiterfassung Halle"          # Anzeigename
   location: "Eingang Fertigung"
+  api_key: ""                           # API-Key vom MDS Server (POST /api/terminal/register)
 
 # NFC Reader (PN532 über I2C)
 nfc:
