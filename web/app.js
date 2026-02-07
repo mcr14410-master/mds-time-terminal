@@ -121,9 +121,8 @@ function updateIndicators(data) {
     if (nfc) nfc.classList.toggle("active", data.nfc_ready);
     if (server) server.classList.toggle("active", data.server_online);
     if (sync) {
-        sync.classList.toggle("hidden", data.pending_sync === 0);
-        sync.textContent = data.pending_sync > 0 ? `⏳ ${data.pending_sync}` : "⏳";
-    }
+            sync.classList.toggle("hidden", data.pending_sync === 0);
+        }
 }
 
 // ============================================
@@ -289,17 +288,37 @@ function showSuccess(entryType, data) {
     const time = now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
     const label = ENTRY_LABELS[entryType] || entryType;
 
-    document.getElementById("success-icon")?.remove;
-    document.querySelector("#screen-success .success-icon").textContent = "✓";
     document.getElementById("success-message").textContent =
         `${label} – ${currentUser.name}`;
     document.getElementById("success-time").textContent = time;
 
     // Detail-Info
+    const detailEl = document.getElementById("success-detail");
     let detail = "";
+
     if (data.status) {
         if (entryType === "clock_out" && data.status.net_minutes > 0) {
-            detail = `Arbeitszeit heute: ${formatMinutes(data.status.net_minutes)}`;
+                    // Sofort 3 Zeilen mit Platzhalter
+                    detailEl.innerText = `Arbeitszeit heute: ${formatMinutes(data.status.net_minutes)}\nSaldo heute: ...\nZeitkonto: ...`;
+
+                    // Saldo vom Server nachladen
+                    fetch(`/api/user/${currentUser.id}/info`)
+                .then(r => r.json())
+                .then(info => {
+                    if (info.server_info) {
+                        const si = info.server_info;
+                        const targetDay = Math.round(parseInt(si.week.target_minutes) / 5);
+                        const saldoToday = data.status.net_minutes - targetDay;
+                        const saldoTotal = si.balance_minutes;
+
+                        let lines = `Arbeitszeit heute: ${formatMinutes(data.status.net_minutes)}`;
+                        lines += `\nSaldo heute: ${formatSaldo(saldoToday)}`;
+                        lines += `\nZeitkonto: ${formatSaldo(saldoTotal)}`;
+                        detailEl.innerText = lines;
+                    }
+                })
+                .catch(() => {});
+
         } else if (entryType === "clock_in") {
             detail = "Guten Morgen!";
         } else if (entryType === "break_start") {
@@ -313,13 +332,17 @@ function showSuccess(entryType, data) {
         detail += (detail ? " · " : "") + "⚠ Offline gespeichert";
     }
 
-    document.getElementById("success-detail").textContent = detail;
+    if (entryType !== "clock_out" || !data.status || data.status.net_minutes <= 0) {
+        detailEl.textContent = detail;
+    }
 
     showScreen("success");
     startAutoReset(8, "success-countdown");
 
-    // Indicators aktualisieren
-    fetch("/api/status").then(r => r.json()).then(updateIndicators).catch(() => {});
+// Indicators aktualisieren (kurz warten bis Sync durch)
+    setTimeout(() => {
+        fetch("/api/status").then(r => r.json()).then(updateIndicators).catch(() => {});
+    }, 2000);
 }
 
 // ============================================
@@ -449,7 +472,7 @@ async function showInfo() {
             if (si.balance_minutes !== null && si.balance_minutes !== undefined) {
                 const bal = si.balance_minutes;
                 const el = document.getElementById("info-balance");
-                el.textContent = (bal >= 0 ? "+" : "") + formatMinutes(bal);
+                el.textContent = formatSaldo(bal);
                 el.className = "info-value " + (bal >= 0 ? "positive" : "negative");
             }
 
@@ -506,6 +529,14 @@ function formatMinutes(totalMinutes) {
     const m = abs % 60;
     const str = `${h}:${String(m).padStart(2, "0")}`;
     return negative ? `-${str}` : str;
+}
+
+function formatSaldo(minutes) {
+    const sign = minutes >= 0 ? "+" : "-";
+    const abs = Math.abs(Math.round(minutes));
+    const h = Math.floor(abs / 60);
+    const m = abs % 60;
+    return `${sign}${h}:${String(m).padStart(2, "0")}`;
 }
 
 // Keyboard-Fallback für Entwicklung (NFC simulieren)

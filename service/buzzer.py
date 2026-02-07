@@ -77,9 +77,9 @@ class Buzzer:
             return
         logger.debug("Buzzer: success")
         if self._pwm:
-            await self._tone_async(880, 0.1)
+            await self._tone_async(2400, 0.1)
             await asyncio.sleep(0.05)
-            await self._tone_async(1175, 0.15)
+            await self._tone_async(3200, 0.15)
         else:
             logger.debug("Buzzer (mock): ♪ success")
 
@@ -89,9 +89,9 @@ class Buzzer:
             return
         logger.debug("Buzzer: error")
         if self._pwm:
-            await self._tone_async(220, 0.3)
+            await self._tone_async(1500, 0.3)
             await asyncio.sleep(0.05)
-            await self._tone_async(220, 0.3)
+            await self._tone_async(1500, 0.3)
         else:
             logger.debug("Buzzer (mock): ♪ error")
 
@@ -101,7 +101,7 @@ class Buzzer:
             return
         logger.debug("Buzzer: scan")
         if self._pwm:
-            await self._tone_async(1320, 0.08)
+            await self._tone_async(3000, 0.08)
         else:
             logger.debug("Buzzer (mock): ♪ scan")
 
