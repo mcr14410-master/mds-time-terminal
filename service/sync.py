@@ -164,36 +164,24 @@ class SyncService:
     # User-Info vom Server (für Info-Screen)
     # ============================================
 
-    async def get_user_info(self, rfid_chip_id: str = None, pin_code: str = None) -> dict | None:
+    async def get_user_info(self, user_id: int) -> dict | None:
         """
         Holt detaillierte User-Info vom Server (Zeitkonto, Urlaub etc.).
-        Fallback: Lokale Daten wenn Server offline.
         """
         if not self._server_online:
             return None
 
         try:
-            params = {}
-            if rfid_chip_id:
-                params["rfid_chip_id"] = rfid_chip_id
-            elif pin_code:
-                params["pin_code"] = pin_code
-            else:
-                return None
-
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                resp = await client.get(
-                    f"{self.base_url}/api/time-tracking/entries/user-info",
-                    params=params,
-                )
-
-                if resp.status_code == 200:
-                    return resp.json()
-
+            resp = await self._client.get(
+                f"{self._base_url}/api/terminal/user-info/{user_id}",
+                headers=self._headers,
+            )
+            if resp.status_code == 200:
+                return resp.json()
+            return None
         except Exception as e:
-            logger.warning(f"User-Info Abruf fehlgeschlagen: {e}")
-
-        return None
+            logger.warning(f"get_user_info fehlgeschlagen: {e}")
+            return None
 
     # ============================================
     # Background Sync Loop

@@ -369,8 +369,8 @@ async def api_user_info(user_id: int):
 
     # Server-Info versuchen
     server_info = None
-    if sync_service and sync_service.server_online and user.get("rfid_chip_id"):
-        server_info = await sync_service.get_user_info(rfid_chip_id=user["rfid_chip_id"])
+    if sync_service and sync_service.server_online:
+        server_info = await sync_service.get_user_info(user_id=user["id"])
 
     # Lokaler Status
     local_status = db.get_user_status(user_id)
