@@ -5,9 +5,9 @@ Wants=network.target
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/mds-time-terminal
-ExecStart=/home/pi/mds-time-terminal/.venv/bin/python -m service.main
+User=rpi02
+WorkingDirectory=/home/rpi02/mds-time-terminal
+ExecStart=/home/rpi02/mds-time-terminal/.venv/bin/python -m service.main
 Restart=always
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1
@@ -16,7 +16,7 @@ Environment=PYTHONUNBUFFERED=1
 SupplementaryGroups=gpio i2c spi
 
 # Watchdog
-WatchdogSec=60
+#WatchdogSec=60
 
 [Install]
 WantedBy=multi-user.target
