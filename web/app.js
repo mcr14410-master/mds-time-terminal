@@ -10,7 +10,7 @@
 // ============================================
 
 let ws = null;
-let currentUser = null;       // { id, name, first_name, last_name, rfid_chip_id }
+let currentUser = null;       // { id, name, first_name, last_name }
 let currentStatus = null;     // { state, valid_actions, worked_minutes, ... }
 let autoResetTimer = null;
 let countdownInterval = null;
@@ -36,7 +36,25 @@ const STATUS_LABELS = {
 document.addEventListener("DOMContentLoaded", () => {
     startClock();
     connectWebSocket();
+    initDisplayWake();
 });
+
+// ============================================
+// Display Wake bei Touch
+// ============================================
+
+function initDisplayWake() {
+    let lastTouch = 0;
+    document.addEventListener("touchstart", () => {
+        const now = Date.now();
+        // Max alle 2 Sekunden ein Wake-Signal senden
+        if (now - lastTouch < 2000) return;
+        lastTouch = now;
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ action: "touch" }));
+        }
+    }, { passive: true });
+}
 
 // ============================================
 // Uhr
@@ -516,6 +534,146 @@ async function showInfo() {
 
     showScreen("info");
     startAutoReset(30, "info-countdown");
+}
+
+// ============================================
+// Korrektur-Screen
+// ============================================
+
+let corrType = "";
+let corrDay = "today";
+let corrTimeDigits = "";
+let corrReason = "";
+
+function showCorrectionScreen() {
+    if (!currentUser) return;
+    
+    // Reset
+    corrType = "";
+    corrDay = "today";
+    corrTimeDigits = "";
+    corrReason = "";
+    
+    // UI zurücksetzen
+    document.querySelectorAll(".btn-corr-type").forEach(b => b.classList.remove("active"));
+    document.getElementById("corr-day-today").classList.add("active");
+    document.getElementById("corr-day-yesterday").classList.remove("active");
+    document.getElementById("corr-time-display").textContent = "--:--";
+    document.getElementById("corr-reason-display").classList.add("hidden");
+    document.getElementById("corr-error").classList.add("hidden");
+    document.querySelectorAll(".btn-corr-reason").forEach(b => b.classList.remove("active"));
+    document.getElementById("btn-corr-submit").disabled = true;
+    
+    showScreen("correction");
+    startAutoReset(60, "");
+}
+
+function corrSetType(type) {
+    corrType = type;
+    document.querySelectorAll(".btn-corr-type").forEach(b => {
+        b.classList.toggle("active", b.dataset.type === type);
+    });
+    corrValidate();
+}
+
+function corrSetDay(day) {
+    corrDay = day;
+    document.getElementById("corr-day-today").classList.toggle("active", day === "today");
+    document.getElementById("corr-day-yesterday").classList.toggle("active", day === "yesterday");
+}
+
+function corrTimeInput(digit) {
+    if (corrTimeDigits.length >= 4) return;
+    corrTimeDigits += digit;
+    corrUpdateTimeDisplay();
+    corrValidate();
+}
+
+function corrTimeClear() {
+    corrTimeDigits = corrTimeDigits.slice(0, -1);
+    corrUpdateTimeDisplay();
+    corrValidate();
+}
+
+function corrUpdateTimeDisplay() {
+    const d = corrTimeDigits.padEnd(4, "_");
+    document.getElementById("corr-time-display").textContent = `${d[0]}${d[1]}:${d[2]}${d[3]}`;
+}
+
+function corrSetReason(reason) {
+    corrReason = reason;
+    document.querySelectorAll(".btn-corr-reason").forEach(b => {
+        b.classList.toggle("active", b.textContent === reason);
+    });
+    const display = document.getElementById("corr-reason-display");
+    display.textContent = reason;
+    display.classList.remove("hidden");
+    corrValidate();
+}
+
+function corrValidate() {
+    const timeValid = corrTimeDigits.length === 4;
+    let valid = corrType && timeValid && corrReason;
+    
+    // Uhrzeit plausibel? (00:00 - 23:59)
+    if (timeValid) {
+        const h = parseInt(corrTimeDigits.substring(0, 2));
+        const m = parseInt(corrTimeDigits.substring(2, 4));
+        if (h > 23 || m > 59) valid = false;
+    }
+    
+    document.getElementById("btn-corr-submit").disabled = !valid;
+}
+
+async function submitCorrection() {
+    if (!currentUser || !corrType || corrTimeDigits.length < 4 || !corrReason) return;
+    
+    const h = corrTimeDigits.substring(0, 2);
+    const m = corrTimeDigits.substring(2, 4);
+    
+    clearAutoReset();
+    document.getElementById("btn-corr-submit").disabled = true;
+    
+    try {
+        const resp = await fetch("/api/correction", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                user_id: currentUser.id,
+                entry_type: corrType,
+                date: corrDay,
+                time: `${h}:${m}`,
+                reason: corrReason,
+            }),
+        });
+        
+        const data = await resp.json();
+        
+        if (!resp.ok) {
+            document.getElementById("corr-error").textContent = data.detail || "Fehler beim Speichern";
+            document.getElementById("corr-error").classList.remove("hidden");
+            document.getElementById("btn-corr-submit").disabled = false;
+            return;
+        }
+        
+        // Erfolg
+        const typeLabels = { clock_in: "Kommen", clock_out: "Gehen", break_start: "Pause Start", break_end: "Pause Ende" };
+        const dayLabel = corrDay === "yesterday" ? "gestern" : "heute";
+        
+        const screen = document.getElementById("screen-success");
+        screen.querySelector(".success-icon").style.color = "#f97316"; // Orange für Korrektur
+        document.getElementById("success-message").textContent = `Korrektur eingereicht`;
+        document.getElementById("success-time").textContent = `${typeLabels[corrType]} · ${dayLabel} ${h}:${m}`;
+        document.getElementById("success-detail").textContent = `Muss vom Vorgesetzten bestätigt werden`;
+        
+        showScreen("success");
+        startAutoReset(5, "success-countdown");
+        
+    } catch (err) {
+        document.getElementById("corr-error").textContent = "Verbindungsfehler";
+        document.getElementById("corr-error").classList.remove("hidden");
+        document.getElementById("btn-corr-submit").disabled = false;
+    }
 }
 
 // ============================================

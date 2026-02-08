@@ -25,6 +25,7 @@ from service import config, db
 from service.nfc_reader import NFCReader
 from service.buzzer import Buzzer
 from service.sync import SyncService
+from service.display import Display
 
 
 # ============================================
@@ -71,6 +72,7 @@ logger = logging.getLogger(__name__)
 nfc: NFCReader = None
 buzzer: Buzzer = None
 sync_service: SyncService = None
+display: Display = None
 ws_connections: set[WebSocket] = set()
 
 
@@ -98,6 +100,10 @@ async def on_nfc_tag(uid: str):
     """Wird aufgerufen wenn ein NFC-Tag gelesen wird."""
     logger.info(f"NFC Tag: {uid}")
 
+    # Display aufwecken
+    if display:
+        display.wake()
+
     # Scan-Ton
     await buzzer.scan()
 
@@ -120,7 +126,6 @@ async def on_nfc_tag(uid: str):
             "name": f"{user['first_name']} {user['last_name']}",
             "first_name": user["first_name"],
             "last_name": user["last_name"],
-            "rfid_chip_id": user["rfid_chip_id"],
         },
         "status": status,
     })
@@ -189,13 +194,25 @@ async def perform_stamp(user_id: int, entry_type: str) -> dict:
 
 
 # ============================================
+# Display Idle Check
+# ============================================
+
+async def display_idle_loop():
+    """Prüft periodisch ob das Display in den Schlaf geschickt werden soll."""
+    while True:
+        await asyncio.sleep(5)
+        if display:
+            display.check_idle()
+
+
+# ============================================
 # App Lifecycle
 # ============================================
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup / Shutdown."""
-    global nfc, buzzer, sync_service
+    global nfc, buzzer, sync_service, display
 
     setup_logging()
     logger.info("=== MDS Time Terminal startet ===")
@@ -206,6 +223,9 @@ async def lifespan(app: FastAPI):
     # Komponenten erstellen
     buzzer = Buzzer()
     buzzer.init_hardware()
+
+    display = Display()
+    display.init_hardware()
 
     sync_service = SyncService()
 
@@ -219,6 +239,7 @@ async def lifespan(app: FastAPI):
         tasks.append(asyncio.create_task(nfc.start_polling()))
 
     tasks.append(asyncio.create_task(sync_service.start_sync_loop()))
+    tasks.append(asyncio.create_task(display_idle_loop()))
 
     logger.info("=== Terminal bereit ===")
     await buzzer.success()  # Startup-Ton
@@ -230,6 +251,7 @@ async def lifespan(app: FastAPI):
     nfc.stop()
     sync_service.stop()
     buzzer.cleanup()
+    display.cleanup()
 
     for task in tasks:
         task.cancel()
@@ -299,6 +321,11 @@ async def handle_ws_message(ws: WebSocket, msg: dict):
             method = getattr(buzzer, tone, buzzer.scan)
             await method()
 
+    elif action == "touch":
+        # Display aufwecken bei Touch-Event vom Frontend
+        if display:
+            display.wake()
+
 
 # ============================================
 # REST API Endpoints
@@ -307,6 +334,14 @@ async def handle_ws_message(ws: WebSocket, msg: dict):
 class StampRequest(BaseModel):
     user_id: int
     entry_type: str
+
+
+class CorrectionRequest(BaseModel):
+    user_id: int
+    entry_type: str
+    date: str       # 'today' | 'yesterday'
+    time: str       # 'HH:MM'
+    reason: str
 
 
 class PinLoginRequest(BaseModel):
@@ -321,6 +356,63 @@ async def api_stamp(req: StampRequest):
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/correction")
+async def api_correction(req: CorrectionRequest):
+    """Korrektur-Buchung: vergessene Stempelung nachtragen."""
+    user = db.get_user_by_id(req.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User nicht gefunden")
+
+    if not req.reason or len(req.reason.strip()) < 3:
+        raise HTTPException(status_code=400, detail="Grund muss mind. 3 Zeichen haben")
+
+    valid_types = ["clock_in", "clock_out", "break_start", "break_end"]
+    if req.entry_type not in valid_types:
+        raise HTTPException(status_code=400, detail="Ungültiger Buchungstyp")
+
+    # Datum berechnen
+    from datetime import date as date_type, timedelta
+    if req.date == "yesterday":
+        target_date = date_type.today() - timedelta(days=1)
+    else:
+        target_date = date_type.today()
+
+    # Timestamp zusammenbauen (lokal)
+    timestamp = f"{target_date.isoformat()}T{req.time}:00"
+
+    # Lokal speichern (mit Korrektur-Flag)
+    stamp_id = db.save_correction(req.user_id, req.entry_type, timestamp, req.reason.strip())
+
+    # Buzzer
+    await buzzer.success()
+
+    # Sofort Sync versuchen
+    if sync_service.server_online:
+        asyncio.create_task(sync_service.sync_stamps())
+
+    # Status aktualisieren und broadcast
+    new_status = db.get_user_status(req.user_id)
+    pending = db.get_pending_count()
+
+    result = {
+        "stamp_id": stamp_id,
+        "user": {
+            "id": user["id"],
+            "name": f"{user['first_name']} {user['last_name']}",
+        },
+        "entry_type": req.entry_type,
+        "timestamp": timestamp,
+        "is_correction": True,
+        "status": new_status,
+        "server_online": sync_service.server_online,
+        "pending_sync": pending,
+    }
+
+    await broadcast("correction_success", result)
+
+    return result
 
 
 @app.post("/api/pin-login")

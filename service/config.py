@@ -42,6 +42,9 @@ DEFAULT_CONFIG = {
         "auto_reset_seconds": 10,
         "info_timeout_seconds": 30,
         "brightness": 100,
+        "dim_after_seconds": 120,
+        "dim_brightness": 50,
+        "off_after_seconds": 1800,
     },
     "logging": {
         "level": "INFO",

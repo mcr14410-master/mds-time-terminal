@@ -93,6 +93,7 @@
         </div>
         <div class="action-footer">
             <button class="btn btn-outline" onclick="showInfo()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Info</button>
+            <button class="btn btn-outline" onclick="showCorrectionScreen()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Korrektur</button>
             <button class="btn btn-outline" onclick="resetToIdle()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Abbrechen</button>
         </div>
     </div>
@@ -150,6 +151,88 @@
             </div>
         </div>
         <div id="info-countdown" class="countdown"></div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- CORRECTION SCREEN: Buchung nachtragen         -->
+    <!-- ============================================ -->
+    <div id="screen-correction" class="screen">
+        <div class="correction-header">
+            <button class="btn btn-back" onclick="showActionScreen()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg> Zurück</button>
+            <h2>Buchung nachtragen</h2>
+        </div>
+        <div class="correction-content">
+            <div class="correction-row">
+                <!-- Buchungstyp -->
+                <div class="correction-section">
+                    <div class="correction-label">Was wurde vergessen?</div>
+                    <div class="correction-type-grid">
+                        <button class="btn btn-corr-type" data-type="clock_in" onclick="corrSetType('clock_in')">
+                            <span class="corr-dot green"></span> Kommen
+                        </button>
+                        <button class="btn btn-corr-type" data-type="clock_out" onclick="corrSetType('clock_out')">
+                            <span class="corr-dot red"></span> Gehen
+                        </button>
+                        <button class="btn btn-corr-type" data-type="break_start" onclick="corrSetType('break_start')">
+                            <span class="corr-dot yellow"></span> Pause Start
+                        </button>
+                        <button class="btn btn-corr-type" data-type="break_end" onclick="corrSetType('break_end')">
+                            <span class="corr-dot blue"></span> Pause Ende
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tag + Uhrzeit -->
+                <div class="correction-section">
+                    <div class="correction-label">Wann?</div>
+                    <div class="correction-day-row">
+                        <button id="corr-day-today" class="btn btn-corr-day active" onclick="corrSetDay('today')">Heute</button>
+                        <button id="corr-day-yesterday" class="btn btn-corr-day" onclick="corrSetDay('yesterday')">Gestern</button>
+                    </div>
+                    <div class="correction-time-row">
+                        <div class="correction-time-display" id="corr-time-display">--:--</div>
+                        <div class="correction-time-pad">
+                            <button class="btn btn-tnum" onclick="corrTimeInput('1')">1</button>
+                            <button class="btn btn-tnum" onclick="corrTimeInput('2')">2</button>
+                            <button class="btn btn-tnum" onclick="corrTimeInput('3')">3</button>
+                            <button class="btn btn-tnum" onclick="corrTimeInput('4')">4</button>
+                            <button class="btn btn-tnum" onclick="corrTimeInput('5')">5</button>
+                            <button class="btn btn-tnum" onclick="corrTimeInput('6')">6</button>
+                            <button class="btn btn-tnum" onclick="corrTimeInput('7')">7</button>
+                            <button class="btn btn-tnum" onclick="corrTimeInput('8')">8</button>
+                            <button class="btn btn-tnum" onclick="corrTimeInput('9')">9</button>
+                            <button class="btn btn-tnum btn-tnum-clear" onclick="corrTimeClear()">⌫</button>
+                            <button class="btn btn-tnum" onclick="corrTimeInput('0')">0</button>
+                            <button class="btn btn-tnum" disabled></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grund -->
+            <div class="correction-section">
+                <div class="correction-label">Grund</div>
+                <div class="correction-reason-grid">
+                    <button class="btn btn-corr-reason" onclick="corrSetReason('Vergessen zu stempeln')">Vergessen zu stempeln</button>
+                    <button class="btn btn-corr-reason" onclick="corrSetReason('Terminal war besetzt')">Terminal war besetzt</button>
+                    <button class="btn btn-corr-reason" onclick="corrSetReason('Karte nicht dabei gehabt')">Karte nicht dabei</button>
+                </div>
+                <div id="corr-reason-display" class="corr-reason-display hidden"></div>
+            </div>
+
+            <!-- Fehler + Absenden -->
+            <div id="corr-error" class="corr-error hidden"></div>
+            <div class="correction-footer">
+                <button class="btn btn-outline" onclick="showActionScreen()">Abbrechen</button>
+                <button id="btn-corr-submit" class="btn btn-action btn-orange btn-corr-subm" onclick="submitCorrection()" disabled>
+                    Korrektur einreichen
+                </button>
+            </div>
+        </div>
+        <div class="corr-notice">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Muss vom Vorgesetzten bestätigt werden
+        </div>
     </div>
 
     <!-- ============================================ -->

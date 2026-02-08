@@ -42,6 +42,19 @@ sudo cp systemd/mds-terminal.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable mds-terminal.service
 
+# Backlight-Berechtigung (für Display-Steuerung ohne root)
+echo ">> Backlight-Berechtigung einrichten..."
+UDEV_RULE='SUBSYSTEM=="backlight", ACTION=="add", RUN+="/bin/chmod a+w /sys/class/backlight/%k/brightness"'
+echo "$UDEV_RULE" | sudo tee /etc/udev/rules.d/99-backlight.rules > /dev/null
+sudo udevadm trigger
+
+# Screen-Blanking deaktivieren (wird vom Terminal selbst gesteuert)
+echo ">> Screen-Blanking deaktivieren..."
+if ! grep -q "consoleblank=0" /boot/firmware/cmdline.txt 2>/dev/null; then
+    sudo sed -i 's/$/ consoleblank=0/' /boot/firmware/cmdline.txt
+    echo "HINWEIS: Neustart erforderlich für Screen-Blanking Änderung!"
+fi
+
 echo ""
 echo "=== Installation abgeschlossen ==="
 echo ""

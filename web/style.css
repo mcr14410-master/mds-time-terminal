@@ -524,3 +524,234 @@ html, body {
     background: #334155;
     border-radius: 4px;
 }
+
+/* ============================================
+   Correction Screen
+   ============================================ */
+.correction-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 24px;
+    border-bottom: 1px solid #1e293b;
+}
+
+.correction-header h2 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #f97316;
+}
+
+.correction-content {
+    padding: 12px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: calc(720px - 56px - 36px);
+    overflow-y: auto;
+}
+
+.correction-row {
+    display: flex;
+    gap: 24px;
+}
+
+.correction-section {
+    flex: 1;
+}
+
+.correction-label {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.correction-type-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.btn-corr-type {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #1e293b;
+    border: 2px solid #334155;
+    border-radius: 8px;
+    color: #e2e8f0;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.15s;
+}
+
+.btn-corr-type.active {
+    border-color: #f97316;
+    background: rgba(249, 115, 22, 0.15);
+    color: #fb923c;
+}
+
+.corr-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.corr-dot.green { background: #22c55e; }
+.corr-dot.red { background: #ef4444; }
+.corr-dot.yellow { background: #eab308; }
+.corr-dot.blue { background: #3b82f6; }
+
+.correction-day-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.btn-corr-day {
+    flex: 1;
+    padding: 8px;
+    background: #1e293b;
+    border: 2px solid #334155;
+    border-radius: 8px;
+    color: #e2e8f0;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.btn-corr-day.active {
+    border-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+}
+
+.correction-time-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.correction-time-display {
+    font-size: 42px;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    color: #f1f5f9;
+    background: #1e293b;
+    border: 2px solid #334155;
+    border-radius: 8px;
+    padding: 8px 16px;
+    min-width: 140px;
+    text-align: center;
+    letter-spacing: 2px;
+}
+
+.correction-time-pad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+}
+
+.btn-tnum {
+    width: 80px;
+    height: 70px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    color: #e2e8f0;
+    font-size: 28px;
+    font-weight: 600;
+}
+
+.btn-tnum:active {
+    background: #334155;
+}
+
+.btn-tnum-clear {
+    color: #f97316;
+    font-size: 20px;
+}
+
+.correction-reason-grid {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.btn-corr-reason {
+    padding: 8px 14px;
+    background: #1e293b;
+    border: 2px solid #334155;
+    border-radius: 8px;
+    color: #e2e8f0;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.btn-corr-reason.active {
+    border-color: #f97316;
+    background: rgba(249, 115, 22, 0.15);
+    color: #fb923c;
+}
+
+.corr-reason-display {
+    margin-top: 6px;
+    padding: 6px 12px;
+    background: rgba(249, 115, 22, 0.1);
+    border-radius: 6px;
+    color: #fb923c;
+    font-size: 13px;
+}
+
+.corr-error {
+    padding: 8px 12px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 8px;
+    color: #fca5a5;
+    font-size: 13px;
+}
+
+.correction-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding-top: 8px;
+}
+
+.btn-orange {
+    background: #f97316 !important;
+    color: white !important;
+    padding: 12px 28px !important;
+    font-size: 16px !important;
+}
+
+.btn-orange:disabled {
+    opacity: 0.4;
+}
+
+.btn-orange:not(:disabled):active {
+    background: #ea580c !important;
+}
+
+.corr-notice {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
+    background: rgba(249, 115, 22, 0.1);
+    border-top: 1px solid rgba(249, 115, 22, 0.2);
+    color: #fb923c;
+    font-size: 13px;
+}
+
+.btn-corr-subm {
+    width: 220px;
+    height: 140px;
+}

@@ -43,21 +43,33 @@ def init_db():
                 id INTEGER PRIMARY KEY,
                 first_name TEXT NOT NULL,
                 last_name TEXT NOT NULL,
-                rfid_chip_id TEXT UNIQUE,
                 pin_code TEXT,
                 time_tracking_enabled INTEGER DEFAULT 1,
                 time_model_name TEXT,
                 synced_at TEXT
             );
 
-            CREATE INDEX IF NOT EXISTS idx_users_rfid ON users(rfid_chip_id);
             CREATE INDEX IF NOT EXISTS idx_users_pin ON users(pin_code);
+
+            CREATE TABLE IF NOT EXISTS rfid_chips (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                chip_uid TEXT NOT NULL UNIQUE,
+                label TEXT,
+                is_active INTEGER DEFAULT 1,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_rfid_chips_uid ON rfid_chips(chip_uid);
+            CREATE INDEX IF NOT EXISTS idx_rfid_chips_user ON rfid_chips(user_id);
 
             CREATE TABLE IF NOT EXISTS stamps (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
                 entry_type TEXT NOT NULL CHECK(entry_type IN ('clock_in','clock_out','break_start','break_end')),
                 timestamp TEXT NOT NULL,
+                is_correction INTEGER DEFAULT 0,
+                correction_reason TEXT,
                 synced INTEGER DEFAULT 0,
                 sync_attempts INTEGER DEFAULT 0,
                 last_sync_attempt TEXT,
@@ -77,6 +89,28 @@ def init_db():
                 created_at TEXT DEFAULT (datetime('now'))
             );
         """)
+        
+        # Migration: Falls alte users-Tabelle noch rfid_chip_id hat, Daten migrieren
+        try:
+            conn.execute("SELECT rfid_chip_id FROM users LIMIT 1")
+            # Spalte existiert noch -> migrieren
+            rows = conn.execute(
+                "SELECT id, rfid_chip_id FROM users WHERE rfid_chip_id IS NOT NULL AND rfid_chip_id != ''"
+            ).fetchall()
+            for row in rows:
+                try:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO rfid_chips (user_id, chip_uid, label) VALUES (?, ?, 'Hauptkarte')",
+                        (row["id"], row["rfid_chip_id"])
+                    )
+                except Exception:
+                    pass
+            # Spalte kann in SQLite nicht gedroppt werden, aber wir ignorieren sie ab jetzt
+            conn.commit()
+            logger.info("RFID-Daten von users nach rfid_chips migriert")
+        except Exception:
+            pass  # Spalte existiert nicht mehr oder rfid_chips Tabelle wird schon genutzt
+
         conn.commit()
         logger.info("Datenbank initialisiert")
     finally:
@@ -94,24 +128,35 @@ def sync_users(users_from_server: list):
         now = datetime.now(timezone.utc).isoformat()
         for user in users_from_server:
             conn.execute("""
-                INSERT INTO users (id, first_name, last_name, rfid_chip_id, pin_code,
+                INSERT INTO users (id, first_name, last_name, pin_code,
                                    time_tracking_enabled, time_model_name, synced_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     first_name = excluded.first_name,
                     last_name = excluded.last_name,
-                    rfid_chip_id = excluded.rfid_chip_id,
                     pin_code = excluded.pin_code,
                     time_tracking_enabled = excluded.time_tracking_enabled,
                     time_model_name = excluded.time_model_name,
                     synced_at = excluded.synced_at
             """, (
                 user["id"], user["first_name"], user["last_name"],
-                user.get("rfid_chip_id"), user.get("pin_code"),
+                user.get("pin_code"),
                 1 if user.get("time_tracking_enabled") else 0,
                 user.get("time_model_name"),
                 now,
             ))
+
+            # RFID Chips synchronisieren
+            chips = user.get("rfid_chips", [])
+            
+            # Bestehende Chips des Users löschen und neu einfügen
+            conn.execute("DELETE FROM rfid_chips WHERE user_id = ?", (user["id"],))
+            for chip in chips:
+                if chip.get("chip_uid"):
+                    conn.execute(
+                        "INSERT OR IGNORE INTO rfid_chips (user_id, chip_uid, label) VALUES (?, ?, ?)",
+                        (user["id"], chip["chip_uid"], chip.get("label"))
+                    )
         
         # User die nicht mehr vom Server kommen deaktivieren
         server_ids = [u["id"] for u in users_from_server]
@@ -121,21 +166,27 @@ def sync_users(users_from_server: list):
                 UPDATE users SET time_tracking_enabled = 0
                 WHERE id NOT IN ({placeholders})
             """, server_ids)
+            # Chips von deaktivierten Usern entfernen
+            conn.execute(f"""
+                DELETE FROM rfid_chips WHERE user_id NOT IN ({placeholders})
+            """, server_ids)
 
         conn.commit()
-        logger.info(f"User-Cache aktualisiert: {len(users_from_server)} User")
+        chip_count = conn.execute("SELECT COUNT(*) as cnt FROM rfid_chips").fetchone()["cnt"]
+        logger.info(f"User-Cache aktualisiert: {len(users_from_server)} User, {chip_count} RFID-Chips")
     finally:
         conn.close()
 
 
 def find_user_by_rfid(rfid_uid: str) -> dict | None:
-    """Sucht User anhand RFID-UID."""
+    """Sucht User anhand RFID-UID (über rfid_chips Tabelle)."""
     conn = get_connection()
     try:
-        row = conn.execute(
-            "SELECT * FROM users WHERE rfid_chip_id = ? AND time_tracking_enabled = 1",
-            (rfid_uid,)
-        ).fetchone()
+        row = conn.execute("""
+            SELECT u.* FROM users u
+            INNER JOIN rfid_chips rc ON rc.user_id = u.id
+            WHERE rc.chip_uid = ? AND rc.is_active = 1 AND u.time_tracking_enabled = 1
+        """, (rfid_uid,)).fetchone()
         return dict(row) if row else None
     finally:
         conn.close()
@@ -190,6 +241,22 @@ def save_stamp(user_id: int, entry_type: str, timestamp: str) -> int:
         conn.commit()
         stamp_id = cursor.lastrowid
         logger.info(f"Stempelung lokal gespeichert: User {user_id}, {entry_type}, ID {stamp_id}")
+        return stamp_id
+    finally:
+        conn.close()
+
+
+def save_correction(user_id: int, entry_type: str, timestamp: str, reason: str) -> int:
+    """Speichert Korrektur-Buchung lokal. Gibt lokale ID zurück."""
+    conn = get_connection()
+    try:
+        cursor = conn.execute(
+            "INSERT INTO stamps (user_id, entry_type, timestamp, is_correction, correction_reason) VALUES (?, ?, ?, 1, ?)",
+            (user_id, entry_type, timestamp, reason)
+        )
+        conn.commit()
+        stamp_id = cursor.lastrowid
+        logger.info(f"Korrektur lokal gespeichert: User {user_id}, {entry_type}, '{reason}', ID {stamp_id}")
         return stamp_id
     finally:
         conn.close()
@@ -336,7 +403,7 @@ def get_user_status(user_id: int) -> dict:
     first_clock_in = None
 
     for s in stamps:
-        ts = datetime.fromisoformat(s["timestamp"])
+        ts = datetime.fromisoformat(s["timestamp"]).replace(tzinfo=timezone.utc)
 
         if s["entry_type"] == "clock_in":
             if first_clock_in is None:

@@ -67,6 +67,7 @@ class SyncService:
     async def sync_stamps(self) -> dict:
         """
         Sendet alle ungesyncten Stempelungen an den Server.
+        Korrekturen gehen an /self-correction, normale an /stamp.
         
         Returns:
             {"synced": int, "failed": int, "pending": int}
@@ -81,15 +82,31 @@ class SyncService:
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             for stamp in unsynced:
                 try:
-                    resp = await client.post(
-                        f"{self.api_url}/stamp",
-                        json={
-                            "user_id": stamp["user_id"],
-                            "entry_type": stamp["entry_type"],
-                            "timestamp": stamp["timestamp"],
-                        },
-                        headers=self._headers,
-                    )
+                    is_correction = stamp.get("is_correction", 0) == 1
+
+                    if is_correction:
+                        # Korrektur -> eigener Endpoint
+                        resp = await client.post(
+                            f"{self.api_url}/self-correction",
+                            json={
+                                "user_id": stamp["user_id"],
+                                "entry_type": stamp["entry_type"],
+                                "timestamp": stamp["timestamp"],
+                                "correction_reason": stamp.get("correction_reason", "Vom Terminal nachgetragen"),
+                            },
+                            headers=self._headers,
+                        )
+                    else:
+                        # Normale Stempelung
+                        resp = await client.post(
+                            f"{self.api_url}/stamp",
+                            json={
+                                "user_id": stamp["user_id"],
+                                "entry_type": stamp["entry_type"],
+                                "timestamp": stamp["timestamp"],
+                            },
+                            headers=self._headers,
+                        )
 
                     if resp.status_code in (200, 201):
                         data = resp.json()
@@ -149,7 +166,7 @@ class SyncService:
                         "id": u["id"],
                         "first_name": u.get("first_name", ""),
                         "last_name": u.get("last_name", ""),
-                        "rfid_chip_id": u.get("rfid_chip_id"),
+                        "rfid_chips": u.get("rfid_chips", []),
                         "pin_code": u.get("pin_code"),
                         "time_tracking_enabled": u.get("time_tracking_enabled", False),
                         "time_model_name": u.get("time_model_name"),
