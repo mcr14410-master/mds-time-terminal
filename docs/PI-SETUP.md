@@ -37,7 +37,7 @@ sudo raspi-config nonint do_i2c 0
 ## 4. Kiosk-Umgebung installieren
 
 ```bash
-sudo apt install -y cage chromium-browser wlr-randr
+sudo apt install -y xserver-xorg xinit x11-xserver-utils unclutter chromium-browser
 ```
 
 ## 5. Neustart
@@ -156,10 +156,8 @@ TTYPath=/dev/tty1
 StandardInput=tty
 StandardOutput=journal
 StandardError=journal
-Environment=XDG_RUNTIME_DIR=/run/user/1000
-Environment=WLR_LIBINPUT_NO_DEVICES=1
 ExecStartPre=/bin/sleep 3
-ExecStart=/home/<USER>/kiosk.sh
+ExecStart=/usr/bin/xinit /home/<USER>/kiosk.sh -- :0 -nocursor
 Restart=always
 RestartSec=5
 
@@ -167,24 +165,52 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-### Kiosk-Script (Display-Rotation via wlr-randr)
+### Kiosk-Script (X11 + Display-Rotation)
 
 ```bash
-sudo nano /home/<USER>/kiosk.sh
+nano /home/<USER>/kiosk.sh
 ```
 
 ```bash
-#!/bin/bash
-cage -s -- bash -c '
+#!/bin/sh
+export DISPLAY=":0"
+
+# Display drehen (X11)
+xrandr --output DSI-1 --rotate right 2>/dev/null
+
+# Mauszeiger verstecken
+unclutter -idle 0.5 -root &
+
+# Warten auf Terminal-Service
+sleep 3
+
+# Chromium Kiosk (Endlos-Loop bei Crash)
+while :; do
+  chromium-browser \
+    --kiosk \
+    --start-fullscreen \
+    --window-size=1280,720 \
+    --window-position=0,0 \
+    --app="http://localhost:8080" \
+    --noerrdialogs \
+    --disable-infobars \
+    --no-first-run \
+    --disable-session-crashed-bubble \
+    --disable-features=TranslateUI \
+    --disable-translate \
+    --disable-notifications \
+    --lang=de \
+    --incognito
   sleep 2
-  wlr-randr --output DSI-1 --transform 90
-  chromium-browser --kiosk --noerrdialogs --disable-infobars --no-first-run --disable-session-crashed-bubble --disable-features=TranslateUI http://localhost:8080
-'
+done
 ```
 
 ```bash
 chmod +x /home/<USER>/kiosk.sh
 ```
+
+> Wichtig: Die Datei muss Unix-Zeilenumbrüche (LF) haben, nicht Windows (CRLF).
+> Prüfen mit `file kiosk.sh`, fixen mit `sed -i 's/\r$//' kiosk.sh`.
 
 ## 11. User-Berechtigungen
 
@@ -229,6 +255,9 @@ journalctl -u kiosk -f
 
 # API-Status testen
 curl http://localhost:8080/api/status
+
+# Display-Auflösung prüfen
+DISPLAY=:0 xrandr
 ```
 
 ## MDS-Server: Terminal registrieren
@@ -245,6 +274,11 @@ curl -X POST http://localhost:3000/api/terminal/register -H "Authorization: Bear
 
 Den zurückgegebenen `api_key` in die `config.yaml` auf dem Terminal-Pi eintragen.
 
+## MDS-Server: Wichtige Hinweise
+
+- `terminalRoutes` muss in `server.js` **vor** den generischen `/api`-Routes registriert werden (vor `toolListsRoutes` etc.), sonst blockiert die JWT-Middleware die Terminal-API-Key-Authentifizierung.
+- Terminal-Endpoints nutzen `X-Terminal-Key` Header statt JWT-Token.
+
 ## Pin-Belegung (BCM)
 
 | Funktion | Pin    | Beschreibung   |
@@ -253,15 +287,28 @@ Den zurückgegebenen `api_key` in die `config.yaml` auf dem Terminal-Pi eintrage
 | I2C SCL  | GPIO 3 | PN532 Takt     |
 | Buzzer   | GPIO 18| KY-006 PWM     |
 
+## Offline-Betrieb
+
+Das Terminal arbeitet offline-first:
+- Stempel werden lokal in SQLite gespeichert
+- Sync zum Server erfolgt automatisch alle 30 Sekunden
+- User-Liste wird alle 5 Minuten vom Server aktualisiert
+- Bei Server-Ausfall funktioniert das Stempeln unbegrenzt weiter (für bereits gecachte User)
+- Duplikate (409) werden automatisch als gesynct markiert
+
 ## Troubleshooting
 
 | Problem | Lösung |
 |---------|--------|
 | Service startet nicht (status=217/USER) | User in Service-Datei prüfen |
-| Kiosk: Permission denied / DRM | `usermod -aG video,render,input,tty <USER>` |
+| Kiosk: Permission denied | `usermod -aG video,render,input,tty <USER>` |
 | Kiosk: 203/EXEC | Script auf Windows-Zeilenumbrüche prüfen: `sed -i 's/\r$//' kiosk.sh` |
-| Display im Hochformat | `wlr-randr --output DSI-1 --transform 90` im kiosk.sh |
+| Display im Hochformat | `xrandr --output DSI-1 --rotate right` im kiosk.sh prüfen |
 | Touch-Eingabe verdreht | udev-Regel in `/etc/udev/rules.d/99-touch-rotation.rules` anpassen |
+| Schwarzer Rand am Display | `--start-fullscreen --window-size=1280,720 --window-position=0,0` in Chromium-Flags |
 | 401 bei Terminal-API | `terminalRoutes` muss in server.js VOR den `/api`-Catch-All Routes stehen |
 | Watchdog killt Service | `WatchdogSec` aus der Service-Datei entfernen |
 | Getty blockiert Kiosk | `sudo systemctl disable getty@tty1` |
+| TypeError: offset-naive/aware | `datetime.now()` → `datetime.now(timezone.utc)` in Python-Code |
+| 409 Duplikate im Sync-Log | Normal bei Neustart — werden automatisch als gesynct markiert |
+| Chromium Translate-Popup | `--disable-translate --disable-features=TranslateUI --lang=de --incognito` |
