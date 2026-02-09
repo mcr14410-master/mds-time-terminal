@@ -74,6 +74,8 @@ Mindestens setzen:
 ```yaml
 server:
   url: "http://<MDS-SERVER-IP>:3000"
+ # oder
+  url: "http://<MDS-SERVER-IP>:81"   #je nach port
 
 terminal:
   api_key: "<API-KEY-VOM-MDS-SERVER>"
@@ -273,6 +275,21 @@ curl -X POST http://localhost:3000/api/terminal/register -H "Authorization: Bear
 ```
 
 Den zurückgegebenen `api_key` in die `config.yaml` auf dem Terminal-Pi eintragen.
+
+bei Docker System mit offenen Port angeben zb 80 oder 81
+
+```bash
+# 1. Login-Token holen
+TOKEN=$(curl -s -X POST http://localhost:81/api/auth/login -H "Content-Type: application/json" -d '{"username":"<USER>","password":"<PASSWORT>"}' | jq -r '.token')
+
+# 2. Prüfen ob Token da ist
+echo $TOKEN
+
+# 3. Terminal registrieren
+curl -X POST http://localhost:81/api/terminal/register -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"name":"Zeiterfassung Halle","location":"Eingang Fertigung"}'
+```
+
+
 
 ## MDS-Server: Wichtige Hinweise
 
