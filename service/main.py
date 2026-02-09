@@ -93,6 +93,23 @@ async def broadcast(event: str, data: dict = None):
 
 
 # ============================================
+# Status-Helper (Server-first, Fallback lokal)
+# ============================================
+
+async def get_status(user_id: int) -> dict:
+    """Holt User-Status: Server wenn online, sonst lokal."""
+    if sync_service and sync_service.server_online:
+        status = await sync_service.fetch_user_status(user_id)
+        if status:
+            logger.debug(f"Status vom Server für User {user_id}: {status['state']}")
+            return status
+
+    status = db.get_user_status(user_id)
+    logger.debug(f"Status lokal für User {user_id}: {status['state']}")
+    return status
+
+
+# ============================================
 # NFC Tag Callback
 # ============================================
 
@@ -117,8 +134,8 @@ async def on_nfc_tag(uid: str):
         logger.warning(f"Unbekannte NFC-Karte: {uid}")
         return
 
-    # User gefunden - Status und Info an UI senden
-    status = db.get_user_status(user["id"])
+    # User gefunden - Status holen (Server bevorzugt, Fallback lokal)
+    status = await get_status(user["id"])
 
     await broadcast("nfc_user", {
         "user": {
@@ -151,7 +168,7 @@ async def perform_stamp(user_id: int, entry_type: str) -> dict:
     now = datetime.now(timezone.utc).isoformat()
 
     # Validierung: Ist diese Aktion gerade erlaubt?
-    current_status = db.get_user_status(user_id)
+    current_status = await get_status(user_id)
     if entry_type not in current_status["valid_actions"]:
         await buzzer.error()
         valid_labels = [db.ENTRY_LABELS.get(a, a) for a in current_status["valid_actions"]]
@@ -425,7 +442,7 @@ async def api_pin_login(req: PinLoginRequest):
 
     await buzzer.scan()
 
-    status = db.get_user_status(user["id"])
+    status = await get_status(user["id"])
 
     return {
         "user": {
@@ -445,7 +462,7 @@ async def api_user_status(user_id: int):
     if not user:
         raise HTTPException(status_code=404, detail="User nicht gefunden")
 
-    status = db.get_user_status(user_id)
+    status = await get_status(user_id)
     return {"user_id": user_id, "status": status}
 
 

@@ -472,18 +472,23 @@ async function showInfo() {
             if (si.today) {
                 document.getElementById("info-today").textContent =
                     formatMinutes(si.today.worked_minutes || 0);
+                if (si.today.overtime_minutes !== undefined) {
+                    setDiff("info-today-diff", si.today.overtime_minutes);
+                }
             }
 
             // Woche
             if (si.week) {
                 document.getElementById("info-week").textContent =
                     formatMinutes(si.week.worked_minutes || 0);
+                setDiff("info-week-diff", si.week.overtime_minutes);
             }
 
             // Monat
             if (si.month) {
                 document.getElementById("info-month").textContent =
                     formatMinutes(si.month.worked_minutes || 0);
+                setDiff("info-month-diff", si.month.overtime_minutes);
             }
 
             // Zeitkonto
@@ -559,7 +564,6 @@ function showCorrectionScreen() {
     document.getElementById("corr-day-today").classList.add("active");
     document.getElementById("corr-day-yesterday").classList.remove("active");
     document.getElementById("corr-time-display").textContent = "--:--";
-    document.getElementById("corr-reason-display").classList.add("hidden");
     document.getElementById("corr-error").classList.add("hidden");
     document.querySelectorAll(".btn-corr-reason").forEach(b => b.classList.remove("active"));
     document.getElementById("btn-corr-submit").disabled = true;
@@ -603,11 +607,8 @@ function corrUpdateTimeDisplay() {
 function corrSetReason(reason) {
     corrReason = reason;
     document.querySelectorAll(".btn-corr-reason").forEach(b => {
-        b.classList.toggle("active", b.textContent === reason);
+        b.classList.toggle("active", b.textContent.trim() === reason);
     });
-    const display = document.getElementById("corr-reason-display");
-    display.textContent = reason;
-    display.classList.remove("hidden");
     corrValidate();
 }
 
@@ -695,6 +696,14 @@ function formatSaldo(minutes) {
     const h = Math.floor(abs / 60);
     const m = abs % 60;
     return `${sign}${h}:${String(m).padStart(2, "0")}`;
+}
+
+function setDiff(elementId, overtimeMinutes) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    const val = parseInt(overtimeMinutes) || 0;
+    el.textContent = formatSaldo(val);
+    el.className = "info-diff " + (val >= 0 ? "positive" : "negative");
 }
 
 // Keyboard-Fallback für Entwicklung (NFC simulieren)

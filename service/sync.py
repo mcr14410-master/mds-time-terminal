@@ -253,3 +253,32 @@ class SyncService:
         """Stoppt den Sync-Loop."""
         self._running = False
         logger.info("Sync-Loop gestoppt")
+
+    # ============================================
+    # User-Status vom Server
+    # ============================================
+
+    async def fetch_user_status(self, user_id: int) -> dict | None:
+        """Holt aktuellen User-Status vom Server.
+        
+        Returns:
+            Status-Dict (gleiche Struktur wie db.get_user_status) oder None bei Fehler.
+        """
+        if not self._server_online:
+            return None
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                resp = await client.get(
+                    f"{self.api_url}/status/{user_id}",
+                    headers=self._headers,
+                )
+
+                if resp.status_code == 200:
+                    return resp.json()
+                else:
+                    logger.warning(f"Server-Status Fehler: {resp.status_code}")
+                    return None
+        except Exception as e:
+            logger.warning(f"Server-Status nicht erreichbar: {e}")
+            return None

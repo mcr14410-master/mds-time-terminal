@@ -122,16 +122,19 @@
         <div class="info-content">
             <div class="info-grid">
                 <div class="info-card">
-                    <div class="info-label">Heute</div>
+                    <div class="info-label">Arbeitszeit heute</div>
                     <div id="info-today" class="info-value">--:--</div>
+                    <div id="info-today-diff" class="info-diff"></div>
                 </div>
                 <div class="info-card">
-                    <div class="info-label">Diese Woche</div>
+                    <div class="info-label">Arbeitszeit Woche</div>
                     <div id="info-week" class="info-value">--:--</div>
+                    <div id="info-week-diff" class="info-diff"></div>
                 </div>
                 <div class="info-card">
-                    <div class="info-label">Dieser Monat</div>
+                    <div class="info-label">Arbeitszeit Monat</div>
                     <div id="info-month" class="info-value">--:--</div>
+                    <div id="info-month-diff" class="info-diff"></div>
                 </div>
                 <div class="info-card highlight">
                     <div class="info-label">Zeitkonto</div>
@@ -163,26 +166,38 @@
         </div>
         <div class="correction-content">
             <div class="correction-row">
-                <!-- Buchungstyp -->
-                <div class="correction-section">
-                    <div class="correction-label">Was wurde vergessen?</div>
-                    <div class="correction-type-grid">
-                        <button class="btn btn-corr-type" data-type="clock_in" onclick="corrSetType('clock_in')">
-                            <span class="corr-dot green"></span> Kommen
-                        </button>
-                        <button class="btn btn-corr-type" data-type="clock_out" onclick="corrSetType('clock_out')">
-                            <span class="corr-dot red"></span> Gehen
-                        </button>
-                        <button class="btn btn-corr-type" data-type="break_start" onclick="corrSetType('break_start')">
-                            <span class="corr-dot yellow"></span> Pause Start
-                        </button>
-                        <button class="btn btn-corr-type" data-type="break_end" onclick="corrSetType('break_end')">
-                            <span class="corr-dot blue"></span> Pause Ende
-                        </button>
+                <!-- Linke Spalte: Buchungstyp + Grund -->
+                <div class="correction-left">
+                    <div class="correction-section">
+                        <div class="correction-label">Was wurde vergessen?</div>
+                        <div class="correction-type-grid">
+                            <button class="btn btn-corr-type" data-type="clock_in" onclick="corrSetType('clock_in')">
+                                <span class="corr-dot green"></span> Kommen
+                            </button>
+                            <button class="btn btn-corr-type" data-type="clock_out" onclick="corrSetType('clock_out')">
+                                <span class="corr-dot red"></span> Gehen
+                            </button>
+                            <button class="btn btn-corr-type" data-type="break_start" onclick="corrSetType('break_start')">
+                                <span class="corr-dot yellow"></span> Pause Start
+                            </button>
+                            <button class="btn btn-corr-type" data-type="break_end" onclick="corrSetType('break_end')">
+                                <span class="corr-dot blue"></span> Pause Ende
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="correction-section">
+                        <div class="correction-label">Grund</div>
+                        <div class="correction-reason-grid">
+                            <button class="btn btn-corr-reason" onclick="corrSetReason('Vergessen zu stempeln')">Vergessen zu stempeln</button>
+                            <button class="btn btn-corr-reason" onclick="corrSetReason('Terminal war besetzt')">Terminal war besetzt</button>
+                            <button class="btn btn-corr-reason" onclick="corrSetReason('Karte nicht dabei')">Karte nicht dabei</button>
+                            <button class="btn btn-corr-reason" onclick="corrSetReason('Sonstiger Grund')">Sonstiger Grund</button>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Tag + Uhrzeit -->
+                <!-- Rechte Spalte: Tag + Uhrzeit -->
                 <div class="correction-section">
                     <div class="correction-label">Wann?</div>
                     <div class="correction-day-row">
@@ -209,22 +224,11 @@
                 </div>
             </div>
 
-            <!-- Grund -->
-            <div class="correction-section">
-                <div class="correction-label">Grund</div>
-                <div class="correction-reason-grid">
-                    <button class="btn btn-corr-reason" onclick="corrSetReason('Vergessen zu stempeln')">Vergessen zu stempeln</button>
-                    <button class="btn btn-corr-reason" onclick="corrSetReason('Terminal war besetzt')">Terminal war besetzt</button>
-                    <button class="btn btn-corr-reason" onclick="corrSetReason('Karte nicht dabei gehabt')">Karte nicht dabei</button>
-                </div>
-                <div id="corr-reason-display" class="corr-reason-display hidden"></div>
-            </div>
-
             <!-- Fehler + Absenden -->
             <div id="corr-error" class="corr-error hidden"></div>
             <div class="correction-footer">
                 <button class="btn btn-outline" onclick="showActionScreen()">Abbrechen</button>
-                <button id="btn-corr-submit" class="btn btn-action btn-orange btn-corr-subm" onclick="submitCorrection()" disabled>
+                <button id="btn-corr-submit" class="btn btn-action btn-orange" onclick="submitCorrection()" disabled>
                     Korrektur einreichen
                 </button>
             </div>
