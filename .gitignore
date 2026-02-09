@@ -8,3 +8,4 @@ venv/
 *.db-journal
 *.log
 .env
+.vscode/
