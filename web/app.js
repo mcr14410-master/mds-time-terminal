@@ -319,23 +319,26 @@ function showSuccess(entryType, data) {
                     // Sofort 3 Zeilen mit Platzhalter
                     detailEl.innerText = `Arbeitszeit heute: ${formatMinutes(data.status.net_minutes)}\nSaldo heute: ...\nZeitkonto: ...`;
 
-                    // Saldo vom Server nachladen
-                    fetch(`/api/user/${currentUser.id}/info`)
-                .then(r => r.json())
-                .then(info => {
-                    if (info.server_info) {
-                        const si = info.server_info;
-                        const targetDay = Math.round(parseInt(si.week.target_minutes) / 5);
-                        const saldoToday = data.status.net_minutes - targetDay;
-                        const saldoTotal = si.balance_minutes;
+                    // Kurz warten bis Sync durch ist, dann Server-Info holen
+                    setTimeout(() => {
+                        fetch(`/api/user/${currentUser.id}/info`)
+                    .then(r => r.json())
+                    .then(info => {
+                        if (info.server_info) {
+                            const si = info.server_info;
+                            const worked = si.today?.worked_minutes ?? data.status.net_minutes;
+                            const targetDay = si.today?.target_minutes ?? 0;
+                            const saldoToday = worked - targetDay;
+                            const saldoTotal = si.balance_minutes;
 
-                        let lines = `Arbeitszeit heute: ${formatMinutes(data.status.net_minutes)}`;
-                        lines += `\nSaldo heute: ${formatSaldo(saldoToday)}`;
-                        lines += `\nZeitkonto: ${formatSaldo(saldoTotal)}`;
-                        detailEl.innerText = lines;
-                    }
-                })
-                .catch(() => {});
+                            let lines = `Arbeitszeit heute: ${formatMinutes(worked)}`;
+                            lines += `\nSaldo heute: ${formatSaldo(saldoToday)}`;
+                            lines += `\nZeitkonto: ${formatSaldo(saldoTotal)}`;
+                            detailEl.innerText = lines;
+                        }
+                    })
+                    .catch(() => {});
+                    }, 1500);
 
         } else if (entryType === "clock_in") {
             detail = "Guten Morgen!";
