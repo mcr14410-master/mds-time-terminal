@@ -13,7 +13,8 @@ import logging
 import logging.handlers
 import os
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
@@ -396,8 +397,10 @@ async def api_correction(req: CorrectionRequest):
     else:
         target_date = date_type.today()
 
-    # Timestamp zusammenbauen (lokal)
-    timestamp = f"{target_date.isoformat()}T{req.time}:00"
+    # Timestamp zusammenbauen (mit Timezone für korrekte Interpretation im Backend)
+    local_tz = ZoneInfo("Europe/Berlin")
+    local_dt = datetime.combine(target_date, datetime.strptime(req.time, "%H:%M").time(), tzinfo=local_tz)
+    timestamp = local_dt.isoformat()
 
     # Lokal speichern (mit Korrektur-Flag)
     stamp_id = db.save_correction(req.user_id, req.entry_type, timestamp, req.reason.strip())
