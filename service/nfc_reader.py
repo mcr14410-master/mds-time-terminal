@@ -19,8 +19,8 @@ try:
     import busio
     from adafruit_pn532.i2c import PN532_I2C
     _hw_available = True
-except (ImportError, NotImplementedError):
-    logger.warning("NFC Hardware-Bibliotheken nicht verfügbar - Mock-Modus aktiv")
+except (ImportError, NotImplementedError, RuntimeError) as e:
+    logger.warning(f"NFC Hardware-Bibliotheken nicht verfügbar - Mock-Modus aktiv ({e})")
 
 
 class NFCReader:
