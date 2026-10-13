@@ -153,8 +153,10 @@ def sync_users(users_from_server: list):
             conn.execute("DELETE FROM rfid_chips WHERE user_id = ?", (user["id"],))
             for chip in chips:
                 if chip.get("chip_uid"):
+                    # REPLACE: Karte, die lokal noch einem anderen User gehört, wird umgehängt
+                    # (mit IGNORE war sie nach einem Wechsel bis zum nächsten Sync bei niemandem)
                     conn.execute(
-                        "INSERT OR IGNORE INTO rfid_chips (user_id, chip_uid, label) VALUES (?, ?, ?)",
+                        "INSERT OR REPLACE INTO rfid_chips (user_id, chip_uid, label) VALUES (?, ?, ?)",
                         (user["id"], chip["chip_uid"], chip.get("label"))
                     )
         
